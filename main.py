@@ -1,9 +1,15 @@
-from transformers import BertTokenizer, BertModel
+import datetime
+import json
+from openai import OpenAI
+from src.constants import OPEN_AI_KEY
+from src.generate_new_resume.generating_new_resume import generating_resume_based_on_jd
 from src.getting_data.getting_jd_data import extract_sentences
 from src.getting_data.getting_user_data import retrieving_user_data
 from src.constants import FULL_NAME_KEY, JD_PATH_OR_TEXT, RESUME_PATH
 from src.getting_data.user_data_utils import download_nltk_resources_if_needed
-from src.preprocessing_pipeline.creating_embeddings import embed_corpus, embed_text_from_resume
+from src.llm_integration.conversion_of_jd_corpus_to_json import generate_job_description
+from src.llm_integration.llm_utils import extract_json_from_response
+from src.generate_new_resume.ats_score import calculate_ats_percentage, generating_suggestions_based_on_ats_score
 
 
 def main(payload):
@@ -11,15 +17,17 @@ def main(payload):
     download_nltk_resources_if_needed('stopwords', 'corpora/stopwords')
     resume_data = retrieving_user_data(payload)
     jd_corpus = extract_sentences(payload)
+    print(resume_data)
 
-    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-    model = BertModel.from_pretrained('bert-base-uncased')
-    embedded_jd_corpus = embed_corpus(jd_corpus, tokenizer, model)
-    embedded_resume_data = embed_text_from_resume(resume_data, tokenizer, model)
-
-    # now we will do cosine similarity between the embeddings of resume and jd based on that we will assign a score,
-    # if the score is above than a particular threshold we will generate the resume using llm and if it is below we will
-    # ask user if user wants to update the resume and than will generate a resume
+    client = OpenAI(api_key=OPEN_AI_KEY)
+    job_description = generate_job_description(jd_corpus, client)
+    job_description = extract_json_from_response(job_description)
+    ats_percentage, unmatched_skills, resume_experience, required_years = calculate_ats_percentage(resume_data, job_description)
+    suggestion = generating_suggestions_based_on_ats_score(ats_percentage, unmatched_skills, resume_experience, required_years)
+    print(f"SUGGESTION: {suggestion}")
+    input("Press Y to continue... ")
+    updated_resume = generating_resume_based_on_jd(resume_data, unmatched_skills)
+    return updated_resume
 
 
 if __name__ == '__main__':
@@ -29,4 +37,10 @@ if __name__ == '__main__':
         JD_PATH_OR_TEXT: r"src/resources/Generative AI Engineer JD (1).docx"
     }
 
-    main(payload)
+    current_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    file_name = f"resume_generated_on_{current_time}.json"
+    SAVED_RESUME_PATH = f"src/resources/{file_name}"
+
+    updated_resume = main(payload)
+    with open(SAVED_RESUME_PATH, "w") as file:
+        json.dump(updated_resume, file, indent=4)
