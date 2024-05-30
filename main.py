@@ -2,7 +2,7 @@ import datetime
 import json
 from openai import OpenAI
 from src.constants import OPEN_AI_KEY
-from src.generate_new_resume.generating_new_resume import generating_resume_based_on_jd
+from src.generate_new_resume.generating_new_resume import generating_resume_based_on_jd, add_skills_to_resume
 from src.getting_data.getting_jd_data import extract_sentences
 from src.getting_data.getting_user_data import retrieving_user_data
 from src.constants import FULL_NAME_KEY, JD_PATH_OR_TEXT, RESUME_PATH
@@ -25,8 +25,9 @@ def main(payload):
     ats_percentage, unmatched_skills, resume_experience, required_years = calculate_ats_percentage(resume_data, job_description)
     suggestion = generating_suggestions_based_on_ats_score(ats_percentage, unmatched_skills, resume_experience, required_years)
     print(f"SUGGESTION: {suggestion}")
-    input("Press Y to continue... ")
-    updated_resume = generating_resume_based_on_jd(resume_data, unmatched_skills)
+
+    updated_skills = add_skills_to_resume(unmatched_skills)
+    updated_resume = generating_resume_based_on_jd(resume_data, updated_skills)
     return updated_resume
 
 
