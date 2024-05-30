@@ -19,4 +19,4 @@ SECTIONAL_KEYWORDS = ['experience', 'education', 'responsibility', 'achievement'
 OPEN_AI_KEY = "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"
 MAX_RETRIES = 3
 RETRY_DELAY = 0.1
-EXPERIENCE_THRESHOLD = -1
+EXPERIENCE_THRESHOLD = 50
